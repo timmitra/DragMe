@@ -7,11 +7,32 @@
 
 import SwiftUI
 
+enum DragState {
+  case inactive
+  case pressing
+  case dragging(translation: CGSize)
+  
+  var translation: CGSize {
+    switch self {
+    case .inactive, .pressing:
+      return .zero
+    case .dragging(let translation):
+      return translation
+    }
+  }
+  
+  var isPressing: Bool {
+    switch self {
+    case .pressing, .dragging:
+      return true
+    case .inactive:
+      return false
+    }
+  }
+}
+
 struct ContentView: View {
-  // for longpress
-  @GestureState private var isPressed = false
-  // for dragGetsure
-  @GestureState private var dragOffset = CGSize.zero
+  @GestureState private var dragState = DragState.inactive
   @State private var position = CGSize.zero
   var body: some View {
     VStack {
@@ -19,21 +40,18 @@ struct ContentView: View {
         .font(.largeTitle)
         .foregroundStyle(.tint)
         .animation(.easeInOut, value: 2.0)
-        .opacity(isPressed ? 0.5 : 1.0)
-        .offset(x: position.width + dragOffset.width, y: position.height + dragOffset.height)
+        .opacity(dragState.isPressing ? 0.5 : 1.0)
+        .offset(x: position.width + dragState.translation.width, y: position.height + dragState.translation.height)
         .gesture(
           LongPressGesture(minimumDuration: 1.0)
-                          .updating($isPressed, body: { (currentState, state, transaction) in
-                              state = currentState
-                          })
-                          .sequenced(before: DragGesture())
-            .updating($dragOffset, body: { (value, state, transaction) in
+            .sequenced(before: DragGesture())
+            .updating($dragState, body: { (value, state, transaction) in
               
               switch value {
               case .first(true):
-                print("Tapping")
+                state = .pressing
               case .second(true, let drag):
-                state = drag?.translation ?? .zero
+                state = .dragging(translation: drag?.translation ?? .zero)
               default:
                 break
               }
